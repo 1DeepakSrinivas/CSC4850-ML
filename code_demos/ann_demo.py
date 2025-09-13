@@ -52,7 +52,6 @@ for ep in range(epochs):
     W1 -= lr*dW1; b1 -= lr*db1
 
 # ---- Plots ----
-import matplotlib.pyplot as plt
 
 plt.figure(figsize=(6,4))
 plt.plot(losses)
