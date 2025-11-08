@@ -17,15 +17,15 @@ import torch
 MISSING_VALUE = 1.0e99
 
 
-# Select Apple GPU when possible, else CPU.
 def get_device() -> torch.device:
+    """Select Apple GPU when possible, else CPU."""
     if torch.backends.mps.is_available():
         return torch.device("mps")
     return torch.device("cpu")
 
 
-# Read feature and label tensors from disk.
 def load_data(data_path: str, label_path: Optional[str] = None) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    """Read feature and label tensors from disk."""
     frame = pd.read_csv(data_path, header=None, sep=r"\s+").astype(np.float32)
     features = torch.from_numpy(frame.to_numpy(copy=True))
 
@@ -38,10 +38,10 @@ def load_data(data_path: str, label_path: Optional[str] = None) -> Tuple[torch.T
     return features, labels
 
 
-# Replace dataset sentinel values with column means.
 def handle_missing_values(
     data: torch.Tensor, stats: Optional[torch.Tensor] = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Replace dataset sentinel values with column means."""
     clean = data.clone()
     missing = torch.isclose(clean, torch.tensor(MISSING_VALUE, dtype=clean.dtype), atol=1e-8)
     clean[missing] = torch.nan
@@ -58,10 +58,10 @@ def handle_missing_values(
     return clean, means
 
 
-# Apply standard score normalization to features.
 def standardize(
     train: torch.Tensor, test: Optional[torch.Tensor] = None, stats: Optional[Tuple[torch.Tensor, torch.Tensor]] = None
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]:
+    """Apply standard score normalization to features."""
     if stats is None:
         mean = train.mean(dim=0)
         std = train.std(dim=0, unbiased=False)
@@ -78,6 +78,7 @@ def standardize(
 
 @dataclass
 class TreeNode:
+    """Node structure for decision tree."""
     prediction: int
     feature: Optional[int] = None
     threshold: Optional[float] = None
@@ -85,10 +86,11 @@ class TreeNode:
     right: Optional["TreeNode"] = None
 
 
-# Single decision tree used inside the forest ensemble.
 class DecisionTree:
-    # Store tree hyperparameters.
+    """Single decision tree used inside the forest ensemble."""
+    
     def __init__(self, max_depth: int, min_samples_split: int, min_samples_leaf: int, max_features: int, n_classes: int):
+        """Store tree hyperparameters."""
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
@@ -98,22 +100,22 @@ class DecisionTree:
         self.features: Optional[torch.Tensor] = None
         self.labels: Optional[torch.Tensor] = None
 
-    # Train the tree on bootstrap samples.
     def fit(self, features: torch.Tensor, labels: torch.Tensor) -> None:
+        """Train the tree on bootstrap samples."""
         self.features = features
         self.labels = labels
         indices = torch.arange(features.size(0))
         self.root = self._build(indices, depth=0)
 
-    # Predict class ids for a batch of rows.
     def predict(self, features: torch.Tensor) -> torch.Tensor:
+        """Predict class ids for a batch of rows."""
         preds = torch.empty(features.size(0), dtype=torch.long)
         for idx in range(features.size(0)):
             preds[idx] = self._predict_one(features[idx])
         return preds
 
-    # Walk the tree to classify a single row.
     def _predict_one(self, row: torch.Tensor) -> int:
+        """Walk the tree to classify a single row."""
         node = self.root
         while node and node.feature is not None:
             if row[node.feature] <= node.threshold:
@@ -122,8 +124,8 @@ class DecisionTree:
                 node = node.right
         return node.prediction if node else 0
 
-    # Recursively grow the tree from the current split.
     def _build(self, indices: torch.Tensor, depth: int) -> TreeNode:
+        """Recursively grow the tree from the current split."""
         labels = self.labels[indices]
         majority = int(torch.mode(labels).values.item())
 
@@ -155,8 +157,8 @@ class DecisionTree:
             right=right_child,
         )
 
-    # Evaluate Gini gain for feature thresholds.
     def _best_split(self, indices: torch.Tensor) -> Tuple[Optional[int], Optional[float], float]:
+        """Evaluate Gini gain for feature thresholds."""
         best_feature = None
         best_threshold = None
         best_gain = 0.0
@@ -192,16 +194,16 @@ class DecisionTree:
 
         return best_feature, best_threshold, best_gain
 
-    # Compute Gini impurity for a label set.
     def _gini(self, labels: torch.Tensor) -> float:
+        """Compute Gini impurity for a label set."""
         counts = torch.bincount(labels, minlength=self.n_classes).float()
         probs = counts / labels.numel()
         return float(1.0 - torch.sum(probs ** 2))
 
 
-# Ensemble of decision trees trained with bagging.
 class RandomForestTorch:
-    # Capture forest-wide hyperparameters.
+    """Ensemble of decision trees trained with bagging."""
+    
     def __init__(
         self,
         n_estimators: int,
@@ -211,6 +213,7 @@ class RandomForestTorch:
         max_features: str,
         random_state: Optional[int],
     ):
+        """Capture forest-wide hyperparameters."""
         self.n_estimators = n_estimators
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
@@ -220,8 +223,8 @@ class RandomForestTorch:
         self.trees: list[DecisionTree] = []
         self.classes_: Optional[torch.Tensor] = None
 
-    # Fit each tree on a bootstrap sample.
     def fit(self, features: torch.Tensor, labels: torch.Tensor) -> None:
+        """Fit each tree on a bootstrap sample."""
         unique_classes, encoded = torch.unique(labels, sorted=True, return_inverse=True)
         self.classes_ = unique_classes
         n_classes = unique_classes.numel()
@@ -233,7 +236,7 @@ class RandomForestTorch:
         if self.random_state is not None:
             generator.manual_seed(self.random_state)
 
-        for tree_idx in range(self.n_estimators):
+        for _ in range(self.n_estimators):
             bootstrap = torch.randint(0, features.size(0), (features.size(0),), generator=generator)
             tree = DecisionTree(
                 max_depth=self.max_depth,
@@ -245,14 +248,14 @@ class RandomForestTorch:
             tree.fit(features[bootstrap], encoded[bootstrap])
             self.trees.append(tree)
 
-    # Aggregate tree predictions by majority vote.
     def predict(self, features: torch.Tensor) -> torch.Tensor:
+        """Aggregate tree predictions by majority vote."""
         votes = torch.stack([tree.predict(features) for tree in self.trees])
         majority, _ = torch.mode(votes, dim=0)
         return self.classes_[majority]
 
-    # Determine the number of features to sample per split.
     def _resolve_max_features(self, feature_count: int) -> int:
+        """Determine the number of features to sample per split."""
         if isinstance(self.max_features_setting, int):
             return max(1, min(self.max_features_setting, feature_count))
         if isinstance(self.max_features_setting, float):
@@ -264,8 +267,8 @@ class RandomForestTorch:
         return feature_count
 
 
-# Load data, train the forest, and save predictions.
 def train_classifier(dataset_num: int) -> torch.Tensor:
+    """Load data, train the forest, and save predictions."""
     device = get_device()
     script_dir = os.path.dirname(os.path.abspath(__file__))
     base_path = os.path.join(script_dir, "dataset")
@@ -324,7 +327,7 @@ if __name__ == "__main__":
     for dataset_index in range(1, 5):
         try:
             train_classifier(dataset_index)
-        except Exception as err:
+        except (FileNotFoundError, ValueError, RuntimeError) as err:
             print(f"Error processing dataset {dataset_index}: {err}")
             import traceback
 
