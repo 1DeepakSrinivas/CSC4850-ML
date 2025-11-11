@@ -75,7 +75,7 @@ def train_classifier(dataset_num):
 
     predictions = classifier.predict(X_test_scaled)
 
-    output_dir = os.path.join(script_dir, 'output')
+    output_dir = os.path.join(script_dir, 'output', 'classification')
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f'test_result{dataset_num}.txt')
     np.savetxt(output_path, predictions, fmt='%d')

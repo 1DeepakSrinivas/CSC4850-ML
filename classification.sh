@@ -24,8 +24,11 @@ pip install -r requirements.txt
 
 echo "All dependencies installed successfully"
 
-echo "Running the classification model"
+echo "Running the classification model (classification.py)"
 cd project/classification
+python classification.py    
+
+echo "Running the classification model (classification2.py)"
 python classification2.py
 
 echo "Classification complete! Check the output directory for results."

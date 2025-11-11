@@ -7,12 +7,12 @@ Project: Classification
 
 import os
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
 import numpy as np
 import pandas as pd
 import torch
 
-MISSING_VALUE = 1.0e99
+MISSING_VALUE = 1.00000000000000e+99
 
 
 def get_device() -> torch.device:
@@ -28,9 +28,12 @@ def get_device() -> torch.device:
 
 def load_data(data_path: str, label_path: Optional[str] = None):
     """Read feature and label tensors from disk."""
-    frame = pd.read_csv(data_path, header=None, sep=r"\s+")
-    frame = frame.clip(-1e30, 1e30).astype(np.float32)
-    features = torch.from_numpy(frame.to_numpy(copy=True))
+    frame = pd.read_csv(data_path, header=None, sep=r"\s+", dtype=np.float64)
+    values = frame.to_numpy(copy=True)
+    missing_mask = values == MISSING_VALUE
+    np.clip(values, -1e30, 1e30, out=values)
+    values[missing_mask] = MISSING_VALUE
+    features = torch.from_numpy(values.astype(np.float32))
 
     labels = None
     if label_path and os.path.exists(label_path):
@@ -42,11 +45,16 @@ def load_data(data_path: str, label_path: Optional[str] = None):
 
 
 def handle_missing_values(
-    data: torch.Tensor, stats: Optional[tuple[torch.Tensor, torch.Tensor]] = None
+    data: torch.Tensor, stats: Optional[torch.Tensor] = None
 ):
     """Replace dataset sentinel values with column means."""
     clean = data.clone()
-    missing = torch.isclose(clean, torch.tensor(MISSING_VALUE, dtype=clean.dtype), atol=1e-8) #fill in missing values with NaN
+    missing = torch.isclose(
+        clean,
+        torch.tensor(MISSING_VALUE, dtype=clean.dtype, device=clean.device),
+        atol=1e-8,
+        rtol=0.0,
+    )  # fill in missing values with NaN
     clean[missing] = torch.nan
 
     if stats is None:
@@ -102,13 +110,16 @@ class DecisionTree:
         self.root: Optional[TreeNode] = None
         self.features: Optional[torch.Tensor] = None
         self.labels: Optional[torch.Tensor] = None
+        self.generator: Optional[torch.Generator] = None
     
-    def fit(self, features: torch.Tensor, labels: torch.Tensor) -> None:
+    def fit(self, features: torch.Tensor, labels: torch.Tensor, generator: Optional[torch.Generator] = None) -> None:
         """Train the tree on bootstrap samples."""
         self.features = features
         self.labels = labels
+        self.generator = generator
         indices = torch.arange(features.size(0)) #create a tensor of indices for the features
         self.root = self._build(indices, depth=0)
+        self.generator = None
 
     def predict(self, features: torch.Tensor) -> torch.Tensor:
         """Predict class ids for a batch of rows."""
@@ -174,7 +185,10 @@ class DecisionTree:
         #compute the current Gini impurity
         current_gini = self._gini(self.labels[indices])
         feature_count = self.features.size(1)
-        candidates = torch.randperm(feature_count)[: self.max_features]
+        if self.generator is not None:
+            candidates = torch.randperm(feature_count, generator=self.generator)[: self.max_features]
+        else:
+            candidates = torch.randperm(feature_count)[: self.max_features]
 
         #iterate over the features
         for feature in candidates:
@@ -257,7 +271,7 @@ class RandomForestTorch:
                 max_features=max_features,
                 n_classes=n_classes,
             )
-            tree.fit(features[bootstrap], encoded[bootstrap])
+            tree.fit(features[bootstrap], encoded[bootstrap], generator=generator)
             self.trees.append(tree)
 
     def predict(self, features: torch.Tensor) -> torch.Tensor:
@@ -333,7 +347,7 @@ def train_classifier(dataset_num: int) -> torch.Tensor:
     predictions = forest.predict(X_test_cpu) #predict the classes for the test data
 
     #save to output directory
-    output_dir = os.path.join(script_dir, "output")
+    output_dir = os.path.join(script_dir, "output", "classification2")
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f"test_result{dataset_num}.txt")
     np.savetxt(output_path, predictions.numpy(), fmt="%d")
