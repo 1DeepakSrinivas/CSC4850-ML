@@ -36,3 +36,7 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Documentation
+ML_Project.pdf
+
