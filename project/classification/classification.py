@@ -14,6 +14,7 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
+from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.metrics import (
     confusion_matrix, roc_auc_score,
     precision_score, recall_score, f1_score, accuracy_score
@@ -49,6 +50,55 @@ def handle_missing_values(data, imputer=None):
     return data_imputed, imputer
 
 
+def remove_outliers(X, y, factor=1.5, max_remove_ratio=0.12):
+    """Remove outliers using the IQR method while avoiding excessive data loss."""
+
+    def compute_iqr_mask(data, fac):
+        Q1 = data.quantile(0.25)
+        Q3 = data.quantile(0.75)
+        IQR = Q3 - Q1
+        lower = Q1 - fac * IQR
+        upper = Q3 + fac * IQR
+
+        mask = pd.Series(True, index=data.index)
+        for col in data.columns:
+            col_iqr = IQR[col]
+            if pd.isna(col_iqr) or col_iqr == 0:
+                continue
+            mask &= data[col].between(lower[col], upper[col], inclusive='both')
+        return mask
+
+    initial_len = len(X)
+    if initial_len == 0:
+        return X, y, 0, factor
+
+    factors_to_try = [factor, 2.0, 2.5]
+    final_mask = pd.Series(True, index=X.index)
+    selected_factor = factor
+
+    for fac in factors_to_try:
+        mask = compute_iqr_mask(X, fac)
+        retained = mask.sum()
+
+        if retained == 0:
+            continue
+
+        removed_ratio = 1 - (retained / initial_len)
+        if removed_ratio <= max_remove_ratio or fac == factors_to_try[-1]:
+            final_mask = mask
+            selected_factor = fac
+            break
+
+    if final_mask.sum() == 0:
+        return X.reset_index(drop=True), y.reset_index(drop=True), 0, factor
+
+    X_filtered = X.loc[final_mask].reset_index(drop=True)
+    y_filtered = y.loc[final_mask].reset_index(drop=True)
+    removed_count = initial_len - len(X_filtered)
+
+    return X_filtered, y_filtered, removed_count, selected_factor
+
+
 def train_classifier(dataset_num):
     """Train the classifier using the Random Forest Classifier and save the predictions to a file."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -59,24 +109,35 @@ def train_classifier(dataset_num):
     train_label_path = os.path.join(base_path, f'TrainLabel{dataset_num}.txt')
     test_data_path = os.path.join(base_path, f'TestData{dataset_num}.txt')
 
-    print(f'\nProcessing Dataset {dataset_num}...')
-
     #  load the training and test data into dataframes
     X_train, y_train = load_data(train_data_path, train_label_path)
     X_test, _ = load_data(test_data_path)
-
-    print(f'  Training samples: {len(X_train)}, Features: {X_train.shape[1]}')
-    print(f'  Test samples: {len(X_test)}')
-    print(f'  Number of classes: {y_train.nunique()}')
 
     #  handle missing values and standardize the data
     X_train_clean, imputer = handle_missing_values(X_train)
     X_test_clean, _ = handle_missing_values(X_test, imputer)
 
+    if dataset_num == 4:
+        X_train_clean, y_train, _, _ = remove_outliers(
+            X_train_clean, y_train, factor=1.5, max_remove_ratio=0.15
+        )
+
     #  standardize the data
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train_clean)
     X_test_scaled = scaler.transform(X_test_clean)
+    
+    # Feature selection for Dataset 4 - keep only the best features
+    if dataset_num == 4:
+        # For datasets with few features, remove only the weakest 1-2 features
+        if X_train_scaled.shape[1] <= 15:
+            n_features_to_keep = X_train_scaled.shape[1] - 2  # Remove 2 weakest features
+        else:
+            n_features_to_keep = min(50, X_train_scaled.shape[1] // 2)
+        
+        selector = SelectKBest(f_classif, k=n_features_to_keep)
+        X_train_scaled = selector.fit_transform(X_train_scaled, y_train)
+        X_test_scaled = selector.transform(X_test_scaled)
 
     #  improved Random Forest parameters based on dataset characteristics
     n_samples, n_features = X_train_scaled.shape
@@ -109,15 +170,17 @@ def train_classifier(dataset_num):
     is_imbalanced = (class_counts.max() / class_counts.min()) > 3
     
     if dataset_num == 4: 
-        # more conservative parameters for dataset 4 since it is larger and complex
-        n_estimators = min(500, max(300, n_samples // 2))
-        max_depth = None  # allow deeper trees for complex patterns
-        min_samples_split = max(5, n_samples // 100)
-        min_samples_leaf = max(2, n_samples // 200)
-        max_features = 'sqrt'
-        class_weight = 'balanced_subsample'  # better for imbalanced data
+        # Optimized parameters for Dataset 4 with feature selection
+        n_estimators = 750          # More trees to compensate for fewer features 
+        max_depth = 32              # Slightly deeper trees for reduced feature space 
+        min_samples_split = 7       # Minimal constraint for flexibility 
+        min_samples_leaf = 3        # Minimal constraint for flexibility 
+        max_features = 'sqrt'       # Limit features per split for diversity (sqrt of features)
+        class_weight = 'balanced_subsample'  # Handle class imbalance
+        max_samples = 0.80          # Bootstrap 80% - balanced regularization
     else:
         class_weight = 'balanced' if is_imbalanced else None
+        max_samples = None
     
     #   RandomForestClassifier:
     #   n_estimators: Number of trees in the forest
@@ -145,16 +208,12 @@ def train_classifier(dataset_num):
         n_jobs=-1,
         class_weight=class_weight,
         criterion='gini',  # gini is used for better splits
-        warm_start=False
+        warm_start=False,
+        max_samples=max_samples  # Bootstrap sample size (Dataset 4: 70%)
     )
-
-    print(f'  Random Forest parameters: n_estimators={n_estimators}, max_depth={max_depth}')
-    print(f'  min_samples_split={min_samples_split}, min_samples_leaf={min_samples_leaf}')
 
     #  train the classifier
     classifier.fit(X_train_scaled, y_train)
-    
-    print(f'  Out-of-bag score: {classifier.oob_score_:.4f}')
 
     #  predictions for test data
     predictions = classifier.predict(X_test_scaled)
@@ -163,22 +222,29 @@ def train_classifier(dataset_num):
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f'test_result{dataset_num}.txt')
     np.savetxt(output_path, predictions, fmt='%d')
-    print(f'  Predictions saved to {output_path}')
     
     #  evaluate the model
     evals_dir = os.path.join(script_dir, 'output', 'classification', 'evals')
     os.makedirs(evals_dir, exist_ok=True)
-    metrics = evaluate_model(classifier, X_train_scaled, y_train, X_test_scaled, None, dataset_num, evals_dir)
+    metrics, artifacts = evaluate_model(
+        classifier, X_train_scaled, y_train, X_test_scaled, None, dataset_num, evals_dir
+    )
+
+    print(f'\nTraining Dataset{dataset_num}')
+    print(f'Predictions saved to: {output_path}')
+    print(f'Metrics saved to: {artifacts["metrics_file"]}')
+    print(f'Feature ranks saved to: {artifacts["importance_file"]}')
+    print(f'Heatmap saved to: {artifacts["heatmap_file"]}')
 
     return predictions, metrics
 
 def evaluate_model(classifier, X_train, y_train, X_test, y_test, dataset_num, output_dir):
     """Evaluate the model and save metrics and visualizations."""
-    
+
     #  cross-validation on training data
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     cv_scores = cross_val_score(classifier, X_train, y_train, cv=cv, scoring='accuracy')
-    
+
     #  predictions on training data for detailed metrics
     y_train_pred = classifier.predict(X_train)
     
@@ -225,23 +291,6 @@ def evaluate_model(classifier, X_train, y_train, X_test, y_test, dataset_num, ou
                 test_roc_auc = roc_auc_score(y_test, y_test_pred_proba)
         except (ValueError, TypeError) as e:
             print(f"  Warning: Could not calculate test ROC-AUC: {e}")
-    
-    # Print metrics
-    print(f'  Cross-validation accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})')
-    print(f'  Training accuracy: {train_accuracy:.4f}')
-    print(f'  Training precision: {train_precision:.4f}')
-    print(f'  Training recall: {train_recall:.4f}')
-    print(f'  Training F1-score: {train_f1:.4f}')
-    if train_roc_auc is not None:
-        print(f'  Training ROC-AUC: {train_roc_auc:.4f}')
-    
-    if y_test is not None:
-        print(f'  Test accuracy: {test_accuracy:.4f}')
-        print(f'  Test precision: {test_precision:.4f}')
-        print(f'  Test recall: {test_recall:.4f}')
-        print(f'  Test F1-score: {test_f1:.4f}')
-        if test_roc_auc is not None:
-            print(f'  Test ROC-AUC: {test_roc_auc:.4f}')
     
     # Save metrics to file
     metrics_file = os.path.join(output_dir, f'evals_dataset{dataset_num}.txt')
@@ -296,9 +345,6 @@ def evaluate_model(classifier, X_train, y_train, X_test, y_test, dataset_num, ou
         plt.savefig(heatmap_file_test, dpi=300, bbox_inches='tight')
         plt.close()
     
-    print(f'  Metrics saved to {metrics_file}')
-    print(f'  Confusion matrix heatmap saved to {heatmap_file}')
-    
     #  feature importance analysis
     feature_importance = classifier.feature_importances_
     top_features_idx = np.argsort(feature_importance)[-10:]  # Top 10 features
@@ -310,8 +356,6 @@ def evaluate_model(classifier, X_train, y_train, X_test, y_test, dataset_num, ou
         f.write("=" * 50 + "\n\n")
         for idx in reversed(top_features_idx):
             f.write(f"Feature {idx}: {feature_importance[idx]:.6f}\n")
-    
-    print(f'  Feature importance saved to {importance_file}')
     
     return {
         'cv_accuracy': cv_scores.mean(),
@@ -326,6 +370,10 @@ def evaluate_model(classifier, X_train, y_train, X_test, y_test, dataset_num, ou
         'test_recall': test_recall,
         'test_f1': test_f1,
         'test_roc_auc': test_roc_auc
+    }, {
+        'metrics_file': metrics_file,
+        'heatmap_file': heatmap_file,
+        'importance_file': importance_file
     }
 
 
@@ -343,7 +391,7 @@ if __name__ == '__main__':
     
     #  summary of all datasets
     print('\n' + '='*60)
-    print('SUMMARY OF ALL DATASETS')
+    print('SUMMARY')
     print('='*60)
     for dataset_num, metrics_dict in all_metrics.items():
         if metrics_dict:
