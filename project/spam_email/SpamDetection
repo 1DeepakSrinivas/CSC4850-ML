@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 #Load Data 
 try:
-    df_train1 = pd.read_csv('dataset/spam_train1.csv', encoding='latin-1')
-    df_train2 = pd.read_csv('dataset/spam_train2.csv')
-    df_test = pd.read_csv('dataset/spam_test.csv')
+    df_train1 = pd.read_csv('project/spam_email/dataset/spam_train1.csv', encoding='latin-1')
+    df_train2 = pd.read_csv('project/spam_email/dataset/spam_train2.csv')
+    df_test = pd.read_csv('project/spam_email/dataset/spam_test.csv')
     print("Data files loaded successfully from the 'dataset' folder.")
 except FileNotFoundError:
     print("Error: Ensure the 'dataset' folder exists and contains all CSV files.")
@@ -44,7 +44,7 @@ print(f"Combined Training set size: {len(X)}")
 print(f"Validation set size: {len(X_val)}")
 
 logreg_pipeline = Pipeline([
-    ('tdidf', TfidfVectorizer(stop_words='english', lowercase=True)),
+    ('tfidf', TfidfVectorizer(stop_words='english', lowercase=True)),
     ('clf', LogisticRegression(solver='liblinear', random_state=42))
 ])
 
@@ -115,4 +115,17 @@ plt.xlabel('Predicted Label')
 plt.title('Confusion Matrix (Logistic Regression)')
 plt.savefig("confusion_matrix_logreg.png")
 plt.close()
-print("Saved Confusion Matrix: confusion_matrix_logreg.png")
+print("Saved Confusion Matrix: confusion_matrix_logreg.png")print("Saved Confusion Matrix: confusion_matrix_logreg.png")
+
+test_predictions_num = best_logreg_model.predict(X_test_final)
+test_predictions_label = ['spam' if p == 1 else 'ham' for p in test_predictions_num]
+
+# Create the output DataFrame
+df_predictions = pd.DataFrame({
+    'text': X_test_final,
+    'predicted_label_num': test_predictions_num,
+    'predicted_label': test_predictions_label
+})
+
+df_predictions.to_csv('spam_test_predictions.csv', index=False)
+print("\nFinal test predictions saved to spam_test_predictions.csv")
