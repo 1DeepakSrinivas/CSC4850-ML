@@ -28,8 +28,6 @@ echo "Running the classification model (classification.py)"
 cd project/classification
 python classification.py    
 
-echo "Running the classification model (classification2.py)"
-python classification2.py
-
 echo "Classification complete! Check the output directory for results."
 echo "Results saved in: project/classification/output/"
+echo "Evaluation metrics saved in: project/classification/output/classification/evals/"

@@ -1,0 +1,13 @@
+Top 10 Important Features - Dataset 2
+==================================================
+
+Feature 418: 0.006691
+Feature 8343: 0.004661
+Feature 3783: 0.004565
+Feature 774: 0.004454
+Feature 772: 0.004307
+Feature 5137: 0.004126
+Feature 4018: 0.004123
+Feature 4100: 0.004111
+Feature 1838: 0.004005
+Feature 7119: 0.003963

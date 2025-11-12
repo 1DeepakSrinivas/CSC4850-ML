@@ -5,7 +5,7 @@
 
 ## Overview
 
-This project implements Random Forest classifiers to solve multi-class classification problems across four different datasets. The goal is to train models on labeled training data and predict class labels for test samples. The project includes two different implementations of the Random Forest algorithm, allowing for comparison between a library-based approach and a custom implementation.
+This project implements Random Forest classifiers using scikit-learn to solve multi-class classification problems across four different datasets. The goal is to train models on labeled training data and predict class labels for test samples. The implementation includes adaptive hyperparameter tuning, comprehensive model evaluation, and detailed performance analysis.
 
 ## What is Random Forest?
 
@@ -36,9 +36,7 @@ The project works with four different datasets, each with varying characteristic
 
 **Note:** Some datasets contain missing values, which are represented by the constant `1.00000000000000e+99`. The code automatically handles these missing values during preprocessing.
 
-## Two Implementation Approaches
-
-### Approach 1: `classification.py` (Scikit-learn Implementation)
+## Implementation: `classification.py`
 
 This implementation uses the well-established `RandomForestClassifier` from the scikit-learn library.
 
@@ -52,53 +50,60 @@ This implementation uses the well-established `RandomForestClassifier` from the 
 1. Loads training data and labels
 2. Handles missing values using scikit-learn's `SimpleImputer` (replaces missing values with column means)
 3. Standardizes features using `StandardScaler` (normalizes to mean=0, std=1)
-4. Trains a Random Forest with adaptive number of trees (50-200 based on dataset size)
-5. Makes predictions on test data
-6. Saves results to files
+4. Adaptively sets hyperparameters based on dataset characteristics (size, number of features, class imbalance)
+5. Trains a Random Forest classifier with optimized parameters
+6. Performs 5-fold cross-validation for robust performance estimation
+7. Evaluates the model and generates comprehensive metrics
+8. Creates confusion matrix visualizations
+9. Analyzes feature importance
+10. Makes predictions on test data
+11. Saves results and evaluation metrics to files
+
+**Adaptive Hyperparameter Tuning:**
+The implementation automatically adjusts hyperparameters based on dataset characteristics:
+
+- **Small datasets (< 200 samples)**: Conservative parameters to prevent overfitting
+  - `n_estimators`: 100-150 trees
+  - `max_depth`: 3-8 (based on log2 of features)
+  - `min_samples_split`: Higher thresholds (n_samples // 15)
+  - `min_samples_leaf`: Higher thresholds (n_samples // 30)
+
+- **Medium datasets (200-1000 samples)**: Balanced approach
+  - `n_estimators`: 200-300 trees
+  - `max_depth`: 8-15 (based on log2 of features)
+  - `min_samples_split`: Moderate thresholds (n_samples // 40)
+  - `min_samples_leaf`: Moderate thresholds (n_samples // 80)
+
+- **Large datasets (> 1000 samples)**: Can handle more complexity
+  - `n_estimators`: 300-500 trees
+  - `max_depth`: 15-25 (based on log2 of features)
+  - `min_samples_split`: Lower thresholds (n_samples // 80)
+  - `min_samples_leaf`: Lower thresholds (n_samples // 160)
+
+**Dataset-Specific Optimizations:**
+- **Dataset 4**: Special handling for severe class imbalance
+  - Uses `balanced_subsample` class weighting
+  - Allows deeper trees (`max_depth=None`) for complex patterns
+  - More trees (300-559) for stable predictions
+  - Lower splitting thresholds to capture minority class patterns
+
+**Class Imbalance Handling:**
+- Automatically detects class imbalance (ratio > 3:1)
+- Uses `balanced` or `balanced_subsample` class weights to adjust for imbalanced classes
+- Improves performance on minority classes
 
 **Key Hyperparameters:**
-- `n_estimators`: Number of trees (adapts based on dataset size: 50-200)
-- `max_depth`: Maximum depth of each tree (20)
-- `min_samples_split`: Minimum samples required to split a node (5)
-- `min_samples_leaf`: Minimum samples required in a leaf node (2)
-- `random_state`: Ensures reproducible results (42)
+- `n_estimators`: Number of trees (adapts: 100-559 based on dataset size)
+- `max_depth`: Maximum depth of each tree (adapts: 3-25 or None for dataset 4)
+- `min_samples_split`: Minimum samples required to split a node (adapts: 5-15)
+- `min_samples_leaf`: Minimum samples required in a leaf node (adapts: 2-8)
+- `max_features`: Features considered at each split ('sqrt' or 'log2' based on feature count)
+- `class_weight`: Automatically set to 'balanced' or 'balanced_subsample' for imbalanced data
+- `bootstrap`: True (enables bagging)
+- `oob_score`: True (uses out-of-bag samples for validation)
+- `random_state`: 42 (ensures reproducible results)
 
-### Approach 2: `classification2.py` (Custom PyTorch Implementation)
-
-This implementation builds a Random Forest from scratch using PyTorch, providing full control over the algorithm.
-
-**Advantages:**
-- **Educational value**: Shows exactly how Random Forest works internally
-- **Customizable**: Easy to modify and experiment with different splitting criteria
-- **Understanding**: Helps understand the algorithm's inner workings
-- **PyTorch integration**: Can leverage GPU acceleration if needed (uncomment line 21-24 as needed in `classification2.py`)
-
-**How it works:**
-1. **Custom Decision Tree Class**: Implements tree nodes with recursive splitting
-2. **Gini Impurity**: Uses Gini impurity to measure how "mixed" a set of labels is (lower is better)
-3. **Best Split Selection**: For each node, finds the feature and threshold that best separates the classes
-4. **Random Feature Selection**: At each split, only considers a random subset of features (using "sqrt" strategy)
-5. **Bootstrap Sampling**: Each tree is trained on a random sample (with replacement) of the training data
-6. **Majority Voting**: Final prediction is the class that gets the most votes from all trees
-
-**Key Components:**
-- `TreeNode`: Represents a node in the decision tree (stores feature, threshold, and child nodes)
-- `DecisionTree`: Implements a single decision tree with recursive building
-- `RandomForestTorch`: Combines multiple trees using bagging and majority voting
-- `handle_missing_values`: Custom function to replace missing values with column means
-- `standardize`: Custom standardization function (mean=0, std=1)
-
-**Key Hyperparameters:**
-- `n_estimators`: Number of trees (adapts based on dataset size: 25-100)
-- `max_depth`: Maximum depth of each tree (12)
-- `min_samples_split`: Minimum samples required to split a node (4)
-- `min_samples_leaf`: Minimum samples required in a leaf node (2)
-- `max_features`: "sqrt" - uses square root of total features at each split
-- `random_state`: Ensures reproducible results (42)
-
-## Data Preprocessing Pipeline
-
-Both implementations follow a similar preprocessing pipeline:
+## Data Preprocessing
 
 1. **Load Data**: Read training data, training labels, and test data from text files
 2. **Handle Missing Values**: 
@@ -118,24 +123,33 @@ Both implementations follow a similar preprocessing pipeline:
 ```
 project/classification/
 ├── README.md                    # This file
-├── classification.py            # Scikit-learn implementation
-├── classification2.py           # Custom PyTorch implementation
-├── dataset/                      # Input data directory
+├── classification.py            # Scikit-learn Random Forest implementation
+├── [archive]/                    # Archived implementations
+│   └── classification2.py       # Custom PyTorch implementation (archived)
+├── dataset/                       # Input data directory
 │   ├── TrainData1.txt           # Training features for dataset 1
 │   ├── TrainLabel1.txt          # Training labels for dataset 1
 │   ├── TestData1.txt            # Test features for dataset 1
 │   └── ...                      # Similar files for datasets 2-4
-└── output/                      # Output directory
-    ├── classification/          # Results from classification.py
-    │   ├── test_result1.txt
-    │   ├── test_result2.txt
-    │   ├── test_result3.txt
-    │   └── test_result4.txt
-    └── classification2/         # Results from classification2.py
+└── output/                       # Output directory
+    └── classification/           # Results from classification.py
         ├── test_result1.txt
         ├── test_result2.txt
         ├── test_result3.txt
-        └── test_result4.txt
+        ├── test_result4.txt
+        └── evals/                # Evaluation metrics and visualizations
+            ├── evals_dataset1.txt
+            ├── evals_dataset2.txt
+            ├── evals_dataset3.txt
+            ├── evals_dataset4.txt
+            ├── conf_matrix_dataset1.png
+            ├── conf_matrix_dataset2.png
+            ├── conf_matrix_dataset3.png
+            ├── conf_matrix_dataset4.png
+            ├── imp_feat_dataset1.txt
+            ├── imp_feat_dataset2.txt
+            ├── imp_feat_dataset3.txt
+            └── imp_feat_dataset4.txt
 ```
 
 ## Dependencies
@@ -144,8 +158,9 @@ The project requires the following Python packages (see `requirements.txt` in th
 
 - **numpy** (>=2.0.0): Numerical computing library
 - **pandas** (>=2.0.0): Data manipulation and analysis
-- **scikit-learn** (>=1.3.0): Machine learning library (for classification.py)
-- **torch** (>=2.0.0): PyTorch deep learning framework (for classification2.py)
+- **scikit-learn** (>=1.3.0): Machine learning library
+- **matplotlib** (>=3.5.0): Plotting library for visualizations
+- **seaborn** (>=0.12.0): Statistical data visualization library
 
 ## Installation and Setup
 
@@ -164,33 +179,39 @@ This script will:
 1. Check for Python 3
 2. Create/activate virtual environment
 3. Install dependencies
-4. Run both classification scripts
-5. Generate predictions for all 4 datasets
+4. Run the classification script
+5. Generate predictions and evaluation metrics for all 4 datasets
 
 ## Output Files
 
-After running the scripts, predictions are saved in the `output/` directory:
+After running the script, predictions and evaluation metrics are saved in the `output/` directory:
 
 - **`output/classification/`**: Contains results from `classification.py`
-  - `test_result1.txt` through `test_result4.txt`
-  
-- **`output/classification2/`**: Contains results from `classification2.py`
-  - `test_result1.txt` through `test_result4.txt`
+  - `test_result1.txt` through `test_result4.txt` - Prediction files
+  - `evals/` - Evaluation directory containing:
+    - `evals_dataset1.txt` through `evals_dataset4.txt` - Detailed metrics for each dataset
+    - `conf_matrix_dataset1.png` through `conf_matrix_dataset4.png` - Confusion matrix heatmaps
+    - `imp_feat_dataset1.txt` through `imp_feat_dataset4.txt` - Top 10 most important features
 
-**Output Format:**
-Each output file contains one integer per line, representing the predicted class label for each test sample. For example:
-```
-1
-2
-1
-3
-...
-```
+**Evaluation Metrics Files:**
+Each `evals_dataset*.txt` file contains comprehensive performance metrics:
+- Cross-validation accuracy (with standard deviation)
+- Training accuracy, precision, recall, F1-score
+- ROC-AUC score (for multiclass classification)
+- Dataset statistics (number of classes, samples, features)
 
-The first line corresponds to the first test sample, the second line to the second test sample, and so on.
+**Visualizations:**
+- **Confusion Matrix Heatmaps**: Color-coded visualizations showing classification performance
+  - Blue heatmaps for training data
+  - Red heatmaps for test data (if labels available)
+  - Shows correct classifications (diagonal) and misclassifications (off-diagonal)
+
+**Feature Importance Files:**
+Each `imp_feat_dataset*.txt` file lists the top 10 most important features for classification, ranked by their contribution to the model's decision-making process.
 
 ## Understanding the Results
 
+**Prediction Files:**
 Each output file contains predictions for the corresponding test dataset:
 - `test_result1.txt`: 53 predictions (one per test sample in Dataset 1)
 - `test_result2.txt`: 74 predictions (one per test sample in Dataset 2)
@@ -199,9 +220,32 @@ Each output file contains predictions for the corresponding test dataset:
 
 The class labels are integers starting from 1. For example, if Dataset 1 has 5 classes, the predictions will be integers from 1 to 5.
 
-## Troubleshooting
+**Evaluation Metrics:**
+The evaluation system provides comprehensive performance analysis:
 
-### Common Issues
+1. **Cross-Validation Accuracy**: 5-fold stratified cross-validation provides a robust estimate of model performance, accounting for variance across different data splits.
+
+2. **Training Metrics**: 
+   - **Accuracy**: Overall correctness of predictions
+   - **Precision**: How many of the predicted positives are actually positive (weighted average)
+   - **Recall**: How many actual positives were correctly identified (weighted average)
+   - **F1-Score**: Harmonic mean of precision and recall
+   - **ROC-AUC**: Area under the ROC curve (multiclass using One-vs-Rest strategy)
+
+3. **Confusion Matrices**: Visual representation showing:
+   - Which classes are being confused with each other
+   - How well each individual class is being predicted
+   - Overall classification patterns
+
+4. **Feature Importance**: Identifies which features contribute most to classification decisions, useful for:
+   - Understanding what the model learns
+   - Feature selection
+   - Domain knowledge validation
+
+**Summary Output:**
+After processing all datasets, a summary is printed showing key metrics for each dataset, allowing for easy comparison across different datasets.
+
+## Troubleshooting
 
 1. **"ModuleNotFoundError"**: Make sure you've activated the virtual environment and installed all dependencies
    ```bash
@@ -216,33 +260,10 @@ The class labels are integers starting from 1. For example, if Dataset 1 has 5 c
    chmod +x classification.sh
    ```
 
-4. **Memory errors with large datasets**: The custom PyTorch implementation may use more memory. If you encounter issues, try running `classification.py` instead, which is more memory-efficient.
-
-## Key Differences Between the Two Implementations
-
-| Aspect | classification.py | classification2.py |
-|--------|------------------|-------------------|
-| **Library** | Scikit-learn | PyTorch (custom) |
-| **Code Complexity** | Simple, high-level | More complex, low-level |
-| **Speed** | Faster (optimized C code) | Slower (pure Python/PyTorch) |
-| **Customization** | Limited to library options | Full control over algorithm |
-| **Learning Value** | Learn to use ML libraries | Understand algorithm internals |
-| **Best For** | Production use, quick results | Learning, experimentation |
-
-## Learning Outcomes
-
-By working with this project, you will:
-- Understand how Random Forest algorithms work
-- Learn to handle missing values in real-world data
-- Practice feature standardization and preprocessing
-- Compare library-based vs. custom implementations
-- Work with multiple datasets of varying sizes and characteristics
-- Understand ensemble learning concepts
-
 ## References
 
 - Scikit-learn Random Forest: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
-- PyTorch Documentation: https://pytorch.org/docs/stable/index.html
 - Breiman, L. (2001). "Random Forests". Machine Learning, 45(1), 5-32.
+- GeeksForGeeks - ML Resources for Random Forest, Decision Trees and Gini Impurity: https://www.geeksforgeeks.org/machine-learning/
 
 ---
