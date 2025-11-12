@@ -16,3 +16,36 @@ try:
 except FileNotFoundError:
     print("Error: Ensure the 'dataset' folder exists and contains all CSV files.")
     exit()
+
+
+# Standardize column names for training set 1 (v1 -> label, v2 -> text)
+df_train1_clean = df_train1[['v1', 'v2']].rename(columns={'v1': 'label', 'v2': 'text'})
+
+# Select relevant columns for training set 2 (label, text)
+df_train2_clean = df_train2[['label', 'text']]
+
+# Combine training data
+df_train_combined = pd.concat([df_train1_clean, df_train2_clean], ignore_index=True)
+
+# Create numerical target variable (0 for 'ham', 1 for 'spam')
+df_train_combined['label_num'] = df_train_combined['label'].map({'ham': 0, 'spam': 1})
+
+# Clean test data column name (message -> text)
+df_test_clean = df_test.rename(columns={'message': 'text'})
+
+# Define feature and target variables
+X = df_train_combined['text']
+y = df_train_combined['label_num']
+X_test_final = df_test_clean['text']
+
+# Split combined training data for training (used for CV) and validation (used for final metrics)
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+print(f"Combined Training set size: {len(X)}")
+print(f"Validation set size: {len(X_val)}")
+
+logreg_pipeline = Pipeline([
+    ('tdidf', TfidfVectorizer(stop_words='english', lowercase=True)),
+    ('clf', LogisticRegression(solver='liblinear', random_state=42))
+])
+
+print("ML pipeline (TF-IDF -> Logistic Regression) defined")
