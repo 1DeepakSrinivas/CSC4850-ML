@@ -40,24 +40,6 @@ The project works with four different datasets, each with varying characteristic
 
 This implementation uses the well-established `RandomForestClassifier` from the scikit-learn library.
 
-**Advantages:**
-- **Production-ready**: Uses a highly optimized, battle-tested library
-- **Fast execution**: Leverages optimized C/C++ code under the hood
-- **Easy to use**: Simple API with sensible defaults
-- **Well-documented**: Extensive documentation and community support
-
-**How it works:**
-1. Loads training data and labels
-2. Handles missing values using scikit-learn's `SimpleImputer` (replaces missing values with column means)
-3. Standardizes features using `StandardScaler` (normalizes to mean=0, std=1)
-4. Adaptively sets hyperparameters based on dataset characteristics (size, number of features, class imbalance)
-5. Trains a Random Forest classifier with optimized parameters
-6. Performs 5-fold cross-validation for robust performance estimation
-7. Evaluates the model and generates comprehensive metrics
-8. Creates confusion matrix visualizations
-9. Analyzes feature importance
-10. Makes predictions on test data
-11. Saves results and evaluation metrics to files
 
 **Adaptive Hyperparameter Tuning:**
 The implementation automatically adjusts hyperparameters based on dataset characteristics:
@@ -117,40 +99,6 @@ The implementation automatically adjusts hyperparameters based on dataset charac
 4. **Train Model**: Fit the Random Forest classifier
 5. **Make Predictions**: Predict class labels for test samples
 6. **Save Results**: Write predictions to output files
-
-## Project Structure
-
-```
-project/classification/
-├── README.md                    # This file
-├── classification.py            # Scikit-learn Random Forest implementation
-├── [archive]/                    # Archived implementations
-│   └── classification2.py       # Custom PyTorch implementation (archived)
-├── dataset/                       # Input data directory
-│   ├── TrainData1.txt           # Training features for dataset 1
-│   ├── TrainLabel1.txt          # Training labels for dataset 1
-│   ├── TestData1.txt            # Test features for dataset 1
-│   └── ...                      # Similar files for datasets 2-4
-└── output/                       # Output directory
-    └── classification/           # Results from classification.py
-        ├── test_result1.txt
-        ├── test_result2.txt
-        ├── test_result3.txt
-        ├── test_result4.txt
-        └── evals/                # Evaluation metrics and visualizations
-            ├── evals_dataset1.txt
-            ├── evals_dataset2.txt
-            ├── evals_dataset3.txt
-            ├── evals_dataset4.txt
-            ├── conf_matrix_dataset1.png
-            ├── conf_matrix_dataset2.png
-            ├── conf_matrix_dataset3.png
-            ├── conf_matrix_dataset4.png
-            ├── imp_feat_dataset1.txt
-            ├── imp_feat_dataset2.txt
-            ├── imp_feat_dataset3.txt
-            └── imp_feat_dataset4.txt
-```
 
 ## Dependencies
 
@@ -218,47 +166,8 @@ Each output file contains predictions for the corresponding test dataset:
 - `test_result3.txt`: 1,092 predictions (one per test sample in Dataset 3)
 - `test_result4.txt`: 480 predictions (one per test sample in Dataset 4)
 
-The class labels are integers starting from 1. For example, if Dataset 1 has 5 classes, the predictions will be integers from 1 to 5.
-
-**Evaluation Metrics:**
-The evaluation system provides comprehensive performance analysis:
-
-1. **Cross-Validation Accuracy**: 5-fold stratified cross-validation provides a robust estimate of model performance, accounting for variance across different data splits.
-
-2. **Training Metrics**: 
-   - **Accuracy**: Overall correctness of predictions
-   - **Precision**: How many of the predicted positives are actually positive (weighted average)
-   - **Recall**: How many actual positives were correctly identified (weighted average)
-   - **F1-Score**: Harmonic mean of precision and recall
-   - **ROC-AUC**: Area under the ROC curve (multiclass using One-vs-Rest strategy)
-
-3. **Confusion Matrices**: Visual representation showing:
-   - Which classes are being confused with each other
-   - How well each individual class is being predicted
-   - Overall classification patterns
-
-4. **Feature Importance**: Identifies which features contribute most to classification decisions, useful for:
-   - Understanding what the model learns
-   - Feature selection
-   - Domain knowledge validation
-
 **Summary Output:**
 After processing all datasets, a summary is printed showing key metrics for each dataset, allowing for easy comparison across different datasets.
-
-## Troubleshooting
-
-1. **"ModuleNotFoundError"**: Make sure you've activated the virtual environment and installed all dependencies
-   ```bash
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. **"FileNotFoundError"**: Ensure you're running the script from the correct directory, or that the dataset files exist in `project/classification/dataset/`
-
-3. **"Permission denied"**: On Linux/Mac, you may need to make the shell script executable:
-   ```bash
-   chmod +x classification.sh
-   ```
 
 ## References
 
