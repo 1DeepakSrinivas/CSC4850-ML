@@ -1,13 +1,12 @@
 Top 10 Important Features - Dataset 4
 ==================================================
 
-Feature 1: 0.156469
-Feature 10: 0.139104
-Feature 9: 0.124844
-Feature 4: 0.088967
-Feature 2: 0.088592
-Feature 6: 0.082403
-Feature 7: 0.076310
-Feature 8: 0.073026
-Feature 0: 0.060854
-Feature 3: 0.057144
+Feature 1: 0.183741
+Feature 8: 0.145331
+Feature 7: 0.138546
+Feature 2: 0.107353
+Feature 5: 0.106449
+Feature 6: 0.095714
+Feature 3: 0.084148
+Feature 0: 0.072112
+Feature 4: 0.066606

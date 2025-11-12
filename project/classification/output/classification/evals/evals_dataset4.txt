@@ -1,14 +1,14 @@
 Dataset 4 - Model Evaluation Metrics
 ==================================================
 
-Cross-validation accuracy: 0.5943 (+/- 0.0348)
-Training accuracy: 0.8159
-Training precision: 0.8269
-Training recall: 0.8159
-Training F1-score: 0.8165
-Training ROC-AUC: 0.9353
+Cross-validation accuracy: 0.6431 (+/- 0.0643)
+Training accuracy: 0.9438
+Training precision: 0.9441
+Training recall: 0.9438
+Training F1-score: 0.9437
+Training ROC-AUC: 0.9883
 
 Number of classes: 6
-Training samples: 1119
+Training samples: 978
 Test samples: 480
-Features: 11
+Features: 9
