@@ -120,7 +120,7 @@ The project requires the following Python packages (see `requirements.txt` in th
 
 From the project root directory, run:
 ```bash
-bash classification.sh
+./classification.sh
 ```
 
 This script will:
