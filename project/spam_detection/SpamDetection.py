@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -7,16 +8,22 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, roc_curve
 import matplotlib.pyplot as plt
 import seaborn as sns
-#Load Data 
+
+#Load Data
 try:
-    df_train1 = pd.read_csv('project/spam_email/dataset/spam_train1.csv', encoding='latin-1')
-    df_train2 = pd.read_csv('project/spam_email/dataset/spam_train2.csv')
-    df_test = pd.read_csv('project/spam_email/dataset/spam_test.csv')
+    df_train1 = pd.read_csv('project/spam_detection/dataset/spam_train1.csv', encoding='latin-1')
+    df_train2 = pd.read_csv('project/spam_detection/dataset/spam_train2.csv')
+    df_test = pd.read_csv('project/spam_detection/dataset/spam_test.csv')
     print("Data files loaded successfully from the 'dataset' folder.")
 except FileNotFoundError:
     print("Error: Ensure the 'dataset' folder exists and contains all CSV files.")
     exit()
 
+
+# Prepare output directory for artifacts
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output')
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Standardize column names for training set 1 (v1 -> label, v2 -> text)
 df_train1_clean = df_train1[['v1', 'v2']].rename(columns={'v1': 'label', 'v2': 'text'})
@@ -100,9 +107,10 @@ plt.title('Receiver Operating Characteristic (ROC) Curve')
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
 plt.legend(loc="lower right")
-plt.savefig("roc_curve_logreg.png")
+roc_path = os.path.join(OUTPUT_DIR, "roc_curve_logreg.png")
+plt.savefig(roc_path)
 plt.close()
-print("Saved ROC Curve: roc_curve_logreg.png")
+print(f"Saved ROC Curve: {roc_path}")
 
 # Plot Confusion Matrix
 cm = confusion_matrix(y_val, y_val_pred)
@@ -113,9 +121,10 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Reds',
 plt.ylabel('True Label')
 plt.xlabel('Predicted Label')
 plt.title('Confusion Matrix (Logistic Regression)')
-plt.savefig("confusion_matrix_logreg.png")
+cm_path = os.path.join(OUTPUT_DIR, "confusion_matrix_logreg.png")
+plt.savefig(cm_path)
 plt.close()
-print("Saved Confusion Matrix: confusion_matrix_logreg.png")print("Saved Confusion Matrix: confusion_matrix_logreg.png")
+print(f"Saved Confusion Matrix: {cm_path}")
 
 test_predictions_num = best_logreg_model.predict(X_test_final)
 test_predictions_label = ['spam' if p == 1 else 'ham' for p in test_predictions_num]
@@ -127,5 +136,6 @@ df_predictions = pd.DataFrame({
     'predicted_label': test_predictions_label
 })
 
-df_predictions.to_csv('spam_test_predictions.csv', index=False)
-print("\nFinal test predictions saved to spam_test_predictions.csv")
+predictions_path = os.path.join(OUTPUT_DIR, 'spam_test_predictions.csv')
+df_predictions.to_csv(predictions_path, index=False)
+print(f"\nFinal test predictions saved to {predictions_path}")
