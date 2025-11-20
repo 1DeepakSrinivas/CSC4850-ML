@@ -27,6 +27,7 @@ venv/
 *.tmp
 *.swp
 *~
+[archive]/*
 
 # IDEs
 .vscode/
@@ -39,3 +40,6 @@ Thumbs.db
 # Documentation
 ML_Project.pdf
 
+#model files
+project/spam_email/spam_detector_model/
+project/spam_email/spam_detector_tokenizer/

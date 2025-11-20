@@ -1,0 +1,36 @@
+BERT Spam Email Detector - Model Report
+
+
+Model Configuration:
+- Base Model: bert-base-uncased
+- Number of Classes: 2 (Ham=0, Spam=1)
+- Max Sequence Length: 128
+- Training Parameters: lr=2e-05, epochs=5, batch_size=8
+
+Dataset Information:
+- Total Training Samples: 3434
+- Total Validation Samples: 859
+- Training Ham/Spam Ratio: 2691/743
+- Validation Ham/Spam Ratio: 673/186
+
+Final Performance Metrics:
+- Accuracy: 0.9872
+- Precision: 0.9781
+- Recall: 0.9624
+- F1 Score: 0.9702
+- ROC-AUC: 0.9936
+
+Test Set Predictions:
+- Total Test Emails: 6448
+- Predicted Ham: 5134
+- Predicted Spam: 1314
+- Average Confidence: 0.9985
+
+Files Generated:
+- Model: spam_detector_model/
+- Tokenizer: spam_detector_tokenizer/
+- Predictions: spam_predictions.csv
+- Summary: spam_predictions_summary.csv
+- Training Stats: training_statistics.csv
+- Confusion Matrix: confusion_matrix.png
+- Training History: training_history.png
