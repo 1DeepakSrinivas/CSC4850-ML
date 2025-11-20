@@ -14,23 +14,27 @@ Dataset Information:
 - Validation Ham/Spam Ratio: 673/186
 
 Final Performance Metrics:
-- Accuracy: 0.9872
-- Precision: 0.9781
-- Recall: 0.9624
-- F1 Score: 0.9702
-- ROC-AUC: 0.9936
+- Accuracy: 0.9825
+- Precision: 0.9672
+- Recall: 0.9516
+- F1 Score: 0.9593
+- ROC-AUC: 0.9950
 
 Test Set Predictions:
 - Total Test Emails: 6448
-- Predicted Ham: 5134
-- Predicted Spam: 1314
-- Average Confidence: 0.9985
+- Predicted Ham: 5150
+- Predicted Spam: 1298
+- Average Confidence: 0.9987
 
 Files Generated:
-- Model: spam_detector_model/
-- Tokenizer: spam_detector_tokenizer/
 - Predictions: spam_predictions.csv
 - Summary: spam_predictions_summary.csv
 - Training Stats: training_statistics.csv
+- Validation Metrics: validation_metrics.csv
 - Confusion Matrix: confusion_matrix.png
 - Training History: training_history.png
+- Validation Curves: validation_curves.png
+- Validation Probability Density: validation_probability_density.png
+- Test Prediction Counts: test_prediction_counts.png
+- Validation vs Test Counts: validation_vs_test_counts.png
+- Test Probability Density: test_probability_density.png
