@@ -2,130 +2,267 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, roc_curve
+from sklearn.metrics import (
+    accuracy_score, classification_report, confusion_matrix,
+    precision_score, recall_score, f1_score, roc_auc_score,
+    roc_curve, precision_recall_curve, auc
+)
+
+from sklearn.svm import LinearSVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.calibration import CalibratedClassifierCV
+
 import matplotlib.pyplot as plt
 import seaborn as sns
-#Load Data 
-try:
-    df_train1 = pd.read_csv('project/spam_email/dataset/spam_train1.csv', encoding='latin-1')
-    df_train2 = pd.read_csv('project/spam_email/dataset/spam_train2.csv')
-    df_test = pd.read_csv('project/spam_email/dataset/spam_test.csv')
-    print("Data files loaded successfully from the 'dataset' folder.")
-except FileNotFoundError:
-    print("Error: Ensure the 'dataset' folder exists and contains all CSV files.")
-    exit()
 
+# Load training datasets
+train1 = pd.read_csv("project/spam_email/dataset/spam_train1.csv")
+train2 = pd.read_csv("project/spam_email/dataset/spam_train2.csv")
+# Load the test dataset
+test = pd.read_csv("project/spam_email/dataset/spam_test.csv")
 
-# Standardize column names for training set 1 (v1 -> label, v2 -> text)
-df_train1_clean = df_train1[['v1', 'v2']].rename(columns={'v1': 'label', 'v2': 'text'})
-
-# Select relevant columns for training set 2 (label, text)
-df_train2_clean = df_train2[['label', 'text']]
-
-# Combine training data
-df_train_combined = pd.concat([df_train1_clean, df_train2_clean], ignore_index=True)
-
-# Create numerical target variable (0 for 'ham', 1 for 'spam')
-df_train_combined['label_num'] = df_train_combined['label'].map({'ham': 0, 'spam': 1})
-
-# Clean test data column name (message -> text)
-df_test_clean = df_test.rename(columns={'message': 'text'})
-
-# Define feature and target variables
-X = df_train_combined['text']
-y = df_train_combined['label_num']
-X_test_final = df_test_clean['text']
-
-# Split combined training data for training (used for CV) and validation (used for final metrics)
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-print(f"Combined Training set size: {len(X)}")
-print(f"Validation set size: {len(X_val)}")
-
-logreg_pipeline = Pipeline([
-    ('tfidf', TfidfVectorizer(stop_words='english', lowercase=True)),
-    ('clf', LogisticRegression(solver='liblinear', random_state=42))
-])
-
-print("ML pipeline (TF-IDF -> Logistic Regression) defined")
-
-# Define parameter grid for tuning
-param_grid = {
-    # TF-IDF parameters
-    'tfidf__max_df': [0.9, 0.95], # Ignore terms that appear in more than this fraction
-    'tfidf__min_df': [2, 5],     # Ignore terms that appear in fewer than this number of documents
-    # Logistic Regression parameter
-    'clf__C': [1, 10, 100]       # C is the inverse of regularization strength
-}
-
-# Use GridSearchCV with 5-fold cross-validation, optimizing for F1-score
-grid_search = GridSearchCV(logreg_pipeline, param_grid, cv=5, scoring='f1', n_jobs=1, verbose=0)
-
-# Fit GridSearchCV on the full training data (X, y)
-print("\nStarting Hyperparameter Tuning...")
-grid_search.fit(X, y)
-
-# Select the best model
-best_logreg_model = grid_search.best_estimator_
-
-print("\n--- Hyperparameter Tuning Results ---")
-print(f"Best parameters found: {grid_search.best_params_}")
-print(f"Best F1-Score from cross-validation: {grid_search.best_score_:.4f}")
-
-
-y_val_pred = best_logreg_model.predict(X_val)
-y_val_proba = best_logreg_model.predict_proba(X_val)[:, 1]
-
-# Calculate metrics
-accuracy = accuracy_score(y_val, y_val_pred)
-precision = precision_score(y_val, y_val_pred)
-recall = recall_score(y_val, y_val_pred)
-f1 = f1_score(y_val, y_val_pred)
-roc_auc = roc_auc_score(y_val, y_val_proba)
-
-print("\n--- Final Model Evaluation (Tuned Logistic Regression) ---")
-print(f"Accuracy: {accuracy:.4f}")
-print(f"Precision: {precision:.4f}")
-print(f"Recall: {recall:.4f}")
-print(f"F1-Score: {f1:.4f}")
-print(f"ROC-AUC: {roc_auc:.4f}")
-
-# Plot ROC-AUC Curve
-fpr, tpr, _ = roc_curve(y_val, y_val_proba)
-plt.figure(figsize=(8, 6))
-plt.plot(fpr, tpr, color='red', lw=2, label=f'ROC curve (area = {roc_auc:.4f})')
-plt.plot([0, 1], [0, 1], color='gray', lw=2, linestyle='--')
-plt.title('Receiver Operating Characteristic (ROC) Curve')
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.legend(loc="lower right")
-plt.savefig("roc_curve_logreg.png")
-plt.close()
-print("Saved ROC Curve: roc_curve_logreg.png")
-
-# Plot Confusion Matrix
-cm = confusion_matrix(y_val, y_val_pred)
-plt.figure(figsize=(7, 7))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Reds',
-            xticklabels=['Ham (0)', 'Spam (1)'],
-            yticklabels=['Ham (0)', 'Spam (1)'])
-plt.ylabel('True Label')
-plt.xlabel('Predicted Label')
-plt.title('Confusion Matrix (Logistic Regression)')
-plt.savefig("confusion_matrix_logreg.png")
-plt.close()
-print("Saved Confusion Matrix: confusion_matrix_logreg.png")print("Saved Confusion Matrix: confusion_matrix_logreg.png")
-
-test_predictions_num = best_logreg_model.predict(X_test_final)
-test_predictions_label = ['spam' if p == 1 else 'ham' for p in test_predictions_num]
-
-# Create the output DataFrame
-df_predictions = pd.DataFrame({
-    'text': X_test_final,
-    'predicted_label_num': test_predictions_num,
-    'predicted_label': test_predictions_label
+# Standardize column names and select relevant columns
+df1 = pd.DataFrame({
+    "label": train1["v1"],  # label column in train1
+    "text": train1["v2"]    # message text column in spam train1
 })
 
-df_predictions.to_csv('spam_test_predictions.csv', index=False)
-print("\nFinal test predictions saved to spam_test_predictions.csv")
+df2 = pd.DataFrame({
+    "label": train2["label"],  # label column in train2
+    "text": train2["text"]     # message text column in spam train2
+})
+
+# Combine both datasets into a single DataFrame
+df = pd.concat([df1, df2], ignore_index=True)
+
+# Drop rows with missing text
+df = df.dropna(subset=["text"])  
+
+# Convert text labels to numeric (ham=0, spam=1)
+df["label_num"] = df["label"].map({"ham": 0, "spam": 1})
+
+
+
+# Split the data into training and validation sets (80/20 split)
+X_train, X_val, y_train, y_val = train_test_split(
+    df["text"],            # input messages
+    df["label_num"],       # target labels
+    test_size=0.2,         # 20% for validation
+    random_state=42,       # reproducibility
+    stratify=df["label_num"]  # maintain spam/ham proportion
+)
+
+
+# Initialize TF-IDF vectorizer
+tfidf = TfidfVectorizer(
+    max_features=5000,      # keep top 5000 features
+    ngram_range=(1, 2),     # use unigrams + bigrams
+    stop_words="english"    # remove common English words
+)
+
+
+#  LINEAR SVM (LinearSVC)
+
+# Create a pipeline: TF-IDF -> Linear SVM
+svm_pipeline = Pipeline([
+    ("tfidf", tfidf),
+    ("svm", LinearSVC())
+])
+
+# Define hyperparameters for grid search
+svm_params = {
+    "svm__C": [0.5, 1.0, 2.0]  # regularization parameter
+}
+
+# Grid search to find best hyperparameters using F1 score
+svm_grid = GridSearchCV(
+    svm_pipeline,
+    svm_params,
+    cv=5,           # 5-fold cross-validation
+    scoring="f1",   # optimize for F1 score (balance precision/recall)
+    n_jobs=-1       # use all CPU cores
+)
+
+# Fit the SVM model on the training data
+svm_grid.fit(X_train, y_train)
+
+
+# LOGISTIC REGRESSION
+
+# Create a pipeline: TF-IDF -> Logistic Regression
+logreg_pipeline = Pipeline([
+    ("tfidf", tfidf),
+    ("logreg", LogisticRegression(max_iter=3000))  # allow enough iterations
+])
+
+# Define hyperparameters for grid search
+logreg_params = {
+    "logreg__C": [0.5, 1.0, 2.0],   # regularization strength
+    "logreg__penalty": ["l2"]       # L2 regularization
+}
+
+# Grid search to find best hyperparameters using F1 score
+log_grid = GridSearchCV(
+    logreg_pipeline,
+    logreg_params,
+    cv=5,           # 5-fold cross-validation
+    scoring="f1",
+    n_jobs=-1
+)
+
+# Fit Logistic Regression model
+log_grid.fit(X_train, y_train)
+
+
+
+# Predict on validation set
+svm_pred = svm_grid.predict(X_val)
+log_pred = log_grid.predict(X_val)
+
+# Function to print evaluation metrics
+def evaluate_model(name, y_true, y_pred):
+    print("\n============================")
+    print(f" MODEL: {name}")
+    print("============================")
+    print("Accuracy:", accuracy_score(y_true, y_pred))
+    print("Precision:", precision_score(y_true, y_pred))
+    print("Recall:", recall_score(y_true, y_pred))
+    print("F1 Score:", f1_score(y_true, y_pred))
+    print("\nClassification Report:\n", classification_report(y_true, y_pred))
+
+# Evaluate both models
+evaluate_model("Linear SVM", y_val, svm_pred)
+evaluate_model("Logistic Regression", y_val, log_pred)
+
+
+# Compute F1 scores
+svm_f1 = f1_score(y_val, svm_pred)
+log_f1 = f1_score(y_val, log_pred)
+
+# Select the model with higher F1 score
+if svm_f1 >= log_f1:
+    best_model = svm_grid
+    best_name = "Linear SVM"
+    best_pred = svm_pred
+else:
+    best_model = log_grid
+    best_name = "Logistic Regression"
+    best_pred = log_pred
+
+print("\n=====================================")
+print(f"BEST MODEL SELECTED: {best_name}")
+print("=====================================\n")
+
+
+# GENERATE VISUALIZATIONS
+# Get probability scores for ROC and PR curves
+# Note: LinearSVC doesn't support predict_proba, so we need to calibrate it
+if best_name == "Linear SVM":
+    # Calibrate SVM to get probability estimates
+    calibrated_model = CalibratedClassifierCV(best_model.best_estimator_, cv=3)
+    calibrated_model.fit(X_train, y_train)
+    y_pred_proba = calibrated_model.predict_proba(X_val)[:, 1]
+else:
+    y_pred_proba = best_model.predict_proba(X_val)[:, 1]
+
+# Calculate metrics for bar chart
+metrics = {
+    'Accuracy': accuracy_score(y_val, best_pred),
+    'Precision': precision_score(y_val, best_pred),
+    'Recall': recall_score(y_val, best_pred),
+    'F1 Score': f1_score(y_val, best_pred)
+}
+
+# 1. CONFUSION MATRIX
+plt.figure(figsize=(8, 6))
+cm = confusion_matrix(y_val, best_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=True,
+            xticklabels=['Ham', 'Spam'], yticklabels=['Ham', 'Spam'])
+plt.title(f'Confusion Matrix - {best_name}', fontsize=16, fontweight='bold')
+plt.ylabel('True Label', fontsize=12)
+plt.xlabel('Predicted Label', fontsize=12)
+plt.tight_layout()
+plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')
+print("Saved: confusion_matrix.png")
+plt.close()
+
+# 2. ROC CURVE
+plt.figure(figsize=(8, 6))
+fpr, tpr, _ = roc_curve(y_val, y_pred_proba)
+roc_auc = auc(fpr, tpr)
+plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.3f})')
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', label='Random Classifier')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate', fontsize=12)
+plt.ylabel('True Positive Rate', fontsize=12)
+plt.title(f'ROC Curve - {best_name}', fontsize=16, fontweight='bold')
+plt.legend(loc="lower right")
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.savefig('roc_curve.png', dpi=300, bbox_inches='tight')
+print("Saved: roc_curve.png")
+plt.close()
+
+# 3. PRECISION-RECALL CURVE
+plt.figure(figsize=(8, 6))
+precision, recall, _ = precision_recall_curve(y_val, y_pred_proba)
+pr_auc = auc(recall, precision)
+plt.plot(recall, precision, color='blue', lw=2, label=f'PR curve (AUC = {pr_auc:.3f})')
+plt.xlabel('Recall', fontsize=12)
+plt.ylabel('Precision', fontsize=12)
+plt.title(f'Precision-Recall Curve - {best_name}', fontsize=16, fontweight='bold')
+plt.legend(loc="lower left")
+plt.grid(alpha=0.3)
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.tight_layout()
+plt.savefig('precision_recall_curve.png', dpi=300, bbox_inches='tight')
+print("Saved: precision_recall_curve.png")
+plt.close()
+
+# 4. METRICS BAR CHART
+plt.figure(figsize=(10, 6))
+metric_names = list(metrics.keys())
+metric_values = list(metrics.values())
+colors = ['#3498db', '#2ecc71', '#e74c3c', '#f39c12']
+bars = plt.bar(metric_names, metric_values, color=colors, edgecolor='black', linewidth=1.5)
+
+# Add value labels on top of bars
+for bar in bars:
+    height = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2., height,
+             f'{height:.3f}',
+             ha='center', va='bottom', fontsize=12, fontweight='bold')
+
+plt.ylim([0, 1.1])
+plt.ylabel('Score', fontsize=12)
+plt.title(f'Evaluation Metrics - {best_name}', fontsize=16, fontweight='bold')
+plt.grid(axis='y', alpha=0.3)
+plt.tight_layout()
+plt.savefig('metrics_bar_chart.png', dpi=300, bbox_inches='tight')
+print("Saved: metrics_bar_chart.png")
+plt.close()
+
+print("\n🎉 All visualizations generated successfully!\n")
+
+
+#TRAIN BEST MODEL ON FULL DATA
+
+# Retrain the best model on the entire dataset for maximum performance
+best_model.fit(df["text"], df["label_num"])
+
+#MAKE PREDICTIONS ON TEST DATA
+
+# Predict labels for the test dataset
+test_pred = best_model.predict(test["message"])
+
+# Save predictions to CSV
+test_output = pd.DataFrame({
+    "prediction": test_pred
+})
+
+test_output.to_csv("spam_test_predictions.csv", index=False)
+
+print("Predictions saved → spam_test_predictions.csv")
