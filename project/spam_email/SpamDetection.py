@@ -155,14 +155,16 @@ print(f"BEST MODEL SELECTED: {best_name}")
 print("=====================================\n")
 
 
-# GENERATE VISUALIZATIONS
+
+print("Generating visualizations on validation set...\n")
+
 # Get probability scores for ROC and PR curves
-# Note: LinearSVC doesn't support predict_proba, so we need to calibrate it
+# LinearSVC doesn't support predict_proba, so we need to calibrate it
 if best_name == "Linear SVM":
     # Calibrate SVM to get probability estimates
-    calibrated_model = CalibratedClassifierCV(best_model.best_estimator_, cv=3)
-    calibrated_model.fit(X_train, y_train)
-    y_pred_proba = calibrated_model.predict_proba(X_val)[:, 1]
+    calibrated_svm = CalibratedClassifierCV(best_model.best_estimator_, cv=3)
+    calibrated_svm.fit(X_train, y_train)
+    y_pred_proba = calibrated_svm.predict_proba(X_val)[:, 1]
 else:
     y_pred_proba = best_model.predict_proba(X_val)[:, 1]
 
@@ -174,7 +176,7 @@ metrics = {
     'F1 Score': f1_score(y_val, best_pred)
 }
 
-# 1. CONFUSION MATRIX
+#CONFUSION MATRIX
 plt.figure(figsize=(8, 6))
 cm = confusion_matrix(y_val, best_pred)
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=True,
@@ -184,10 +186,10 @@ plt.ylabel('True Label', fontsize=12)
 plt.xlabel('Predicted Label', fontsize=12)
 plt.tight_layout()
 plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')
-print("Saved: confusion_matrix.png")
+print("✅ Saved: confusion_matrix.png")
 plt.close()
 
-# 2. ROC CURVE
+#ROC CURVE
 plt.figure(figsize=(8, 6))
 fpr, tpr, _ = roc_curve(y_val, y_pred_proba)
 roc_auc = auc(fpr, tpr)
@@ -202,10 +204,10 @@ plt.legend(loc="lower right")
 plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.savefig('roc_curve.png', dpi=300, bbox_inches='tight')
-print("Saved: roc_curve.png")
+print("✅ roc_curve.png")
 plt.close()
 
-# 3. PRECISION-RECALL CURVE
+#PRECISION-RECALL CURVE
 plt.figure(figsize=(8, 6))
 precision, recall, _ = precision_recall_curve(y_val, y_pred_proba)
 pr_auc = auc(recall, precision)
@@ -219,10 +221,10 @@ plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
 plt.tight_layout()
 plt.savefig('precision_recall_curve.png', dpi=300, bbox_inches='tight')
-print("Saved: precision_recall_curve.png")
+print("✅ data/precision_recall_curve.png")
 plt.close()
 
-# 4. METRICS BAR CHART
+#METRICS BAR CHART
 plt.figure(figsize=(10, 6))
 metric_names = list(metrics.keys())
 metric_values = list(metrics.values())
@@ -242,13 +244,12 @@ plt.title(f'Evaluation Metrics - {best_name}', fontsize=16, fontweight='bold')
 plt.grid(axis='y', alpha=0.3)
 plt.tight_layout()
 plt.savefig('metrics_bar_chart.png', dpi=300, bbox_inches='tight')
-print("Saved: metrics_bar_chart.png")
+print("✅ metrics_bar_chart.png")
 plt.close()
 
 print("\n🎉 All visualizations generated successfully!\n")
 
-
-#TRAIN BEST MODEL ON FULL DATA
+print("Retraining best model on full dataset for final predictions...\n")
 
 # Retrain the best model on the entire dataset for maximum performance
 best_model.fit(df["text"], df["label_num"])
