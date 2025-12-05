@@ -185,8 +185,8 @@ plt.title(f'Confusion Matrix - {best_name}', fontsize=16, fontweight='bold')
 plt.ylabel('True Label', fontsize=12)
 plt.xlabel('Predicted Label', fontsize=12)
 plt.tight_layout()
-plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')
-print("✅ Saved: confusion_matrix.png")
+plt.savefig('project/spam_email/output/confusion_matrix.png', dpi=300, bbox_inches='tight')
+print("Saved: confusion_matrix.png")
 plt.close()
 
 #ROC CURVE
@@ -203,8 +203,8 @@ plt.title(f'ROC Curve - {best_name}', fontsize=16, fontweight='bold')
 plt.legend(loc="lower right")
 plt.grid(alpha=0.3)
 plt.tight_layout()
-plt.savefig('roc_curve.png', dpi=300, bbox_inches='tight')
-print("✅ roc_curve.png")
+plt.savefig('project/spam_email/output/roc_curve.png', dpi=300, bbox_inches='tight')
+print("roc_curve.png")
 plt.close()
 
 #PRECISION-RECALL CURVE
@@ -220,8 +220,8 @@ plt.grid(alpha=0.3)
 plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
 plt.tight_layout()
-plt.savefig('precision_recall_curve.png', dpi=300, bbox_inches='tight')
-print("✅ data/precision_recall_curve.png")
+plt.savefig('project/spam_email/output/precision_recall_curve.png', dpi=300, bbox_inches='tight')
+print("precision_recall_curve.png")
 plt.close()
 
 #METRICS BAR CHART
@@ -243,11 +243,11 @@ plt.ylabel('Score', fontsize=12)
 plt.title(f'Evaluation Metrics - {best_name}', fontsize=16, fontweight='bold')
 plt.grid(axis='y', alpha=0.3)
 plt.tight_layout()
-plt.savefig('metrics_bar_chart.png', dpi=300, bbox_inches='tight')
-print("✅ metrics_bar_chart.png")
+plt.savefig('project/spam_email/output/metrics_bar_chart.png', dpi=300, bbox_inches='tight')
+print("metrics_bar_chart.png")
 plt.close()
 
-print("\n🎉 All visualizations generated successfully!\n")
+print("\n All visualizations generated successfully!\n")
 
 print("Retraining best model on full dataset for final predictions...\n")
 
