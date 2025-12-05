@@ -218,13 +218,13 @@ def train_classifier(dataset_num):
     #  predictions for test data
     predictions = classifier.predict(X_test_scaled)
 
-    output_dir = os.path.join(script_dir, 'output', 'classification')
+    output_dir = os.path.join(script_dir, 'output')
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f'test_result{dataset_num}.txt')
     np.savetxt(output_path, predictions, fmt='%d')
     
     #  evaluate the model
-    evals_dir = os.path.join(script_dir, 'output', 'classification', 'evals')
+    evals_dir = os.path.join(script_dir, 'output', 'evals')
     os.makedirs(evals_dir, exist_ok=True)
     metrics, artifacts = evaluate_model(
         classifier, X_train_scaled, y_train, X_test_scaled, None, dataset_num, evals_dir
@@ -402,4 +402,4 @@ if __name__ == '__main__':
             if metrics_dict["train_roc_auc"] is not None:
                 print(f'  Training ROC-AUC: {metrics_dict["train_roc_auc"]:.4f}')
     
-    print('\nAll evaluation metrics and visualizations have been saved to the output/classification/evals/ directory.')
+    print('\nAll evaluation metrics and visualizations have been saved to the output/evals/ directory.')

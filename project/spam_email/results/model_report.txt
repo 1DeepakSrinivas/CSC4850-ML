@@ -30,6 +30,7 @@ Files Generated:
 - Predictions: spam_predictions.csv
 - Summary: spam_predictions_summary.csv
 - Output Labels: output_labels.csv
+- Binary Output Labels: output_labels_bin.csv
 - Training Stats: training_statistics.csv
 - Validation Metrics: validation_metrics.csv
 - Confusion Matrix: confusion_matrix.png
